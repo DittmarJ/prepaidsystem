@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prepaid-Kaffeesystem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-admin {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .btn-admin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+        
+        .tasse-wahl {
+            transition: all 0.3s ease;
+        }
+        
+        .tasse-wahl:hover {
+            transform: scale(1.1);
+            background: #667eea !important;
+            color: white !important;
+        }
+        
+        .points-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .admin-badge {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .points-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .points-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .points-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .points-btn.add {
+            background: #10B981;
+            color: white;
+        }
+        
+        .points-btn.subtract {
+            background: #EF4444;
+            color: white;
+        }
+        
+        .password-info {
+            font-size: 0.75rem;
+            color: #6B7280;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen p-4">
+    <div class="w-full max-w-md card p-6 md:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-extrabold text-indigo-700">Prepaid-Kaffeesystem</h1>
+            <p class="text-sm text-gray-500 mt-1">Aktuelle Sitzungs-ID: <span id="user-id" class="font-mono text-xs"></span></p>
+        </header>
+
+        <!-- Ladeanzeige -->
+        <div id="loading" class="text-center">
+            <p class="text-gray-500">Verbindung wird hergestellt...</p>
+            <div class="mt-3 w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+        </div>
+
+        <!-- 1. Login-Formular -->
+        <div id="login-form" class="hidden space-y-4">
+            <h2 class="text-xl font-semibold text-gray-700">Anmelden</h2>
+            <input type="text" id="kontonummer" placeholder="Kontonummer" required 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <div>
+                <input type="password" id="pin" placeholder="PIN/Passwort" required 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <p class="password-info">PIN oder Passwort eingeben (mindestens 4 Zeichen)</p>
+            </div>
+            <div id="login-nachricht" class="message p-2 mt-4 text-sm font-medium rounded-lg"></div>
+            <div class="flex space-x-4 mt-4">
+                <button id="anmelden-btn" disabled 
+                        class="flex-1 p-3 text-white btn-primary rounded-lg shadow-md font-semibold disabled:bg-indigo-300">
+                    Anmelden
+                </button>
+                <button id="registrieren-btn" 
+                        class="flex-1 p-3 text-indigo-600 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition duration-200 font-semibold">
+                    Registrieren
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Registrierungs-Formular -->
+        <div id="registration-form" class="hidden space-y-4">
+            <h2 class="text-xl font-semibold text-gray-700">Neues Konto anlegen</h2>
+            <input type="text" id="reg-kontonummer" placeholder="Kontonummer" disabled 
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed">
+            <input type="text" id="reg-name" placeholder="Name" required 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <input type="email" id="reg-email" placeholder="E-Mail" required 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <div>
+                <input type="password" id="reg-pin" placeholder="PIN/Passwort festlegen" required 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                <p class="password-info">Mindestens 4 Zeichen, beliebige Kombination aus Buchstaben, Zahlen und Sonderzeichen</p>
+            </div>
+            <div>
+                <input type="password" id="reg-pin-confirm" placeholder="PIN/Passwort bestätigen" required 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            
+            <div id="reg-nachricht" class="message p-2 mt-4 text-sm font-medium rounded-lg"></div>
+            <div class="flex space-x-4 mt-4">
+                <button id="register-submit-btn" 
+                        class="flex-1 p-3 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-md transition duration-200 font-semibold">
+                    Registrierung abschließen
+                </button>
+                <button id="register-back-btn" 
+                        class="flex-1 p-3 text-gray-600 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200 font-semibold">
+                    Zurück
+                </button>
+            </div>
+            <button id="registerLoginBtn" class="hidden w-full p-3 text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg mt-2 font-semibold">
+                Jetzt anmelden
+            </button>
+        </div>
+
+        <!-- 3. Haupt-Dashboard (Benutzer) -->
+        <div id="dashboard" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-800">Hallo, <span id="user-display" class="text-indigo-600"></span>!</h2>
+                <span id="user-role-badge" class="hidden px-2 py-1 text-xs font-semibold rounded-full"></span>
+            </div>
+            
+            <div class="points-display">
+                <p class="text-sm font-medium text-indigo-100">Aktuelle Punkte:</p>
+                <div id="punktestand" class="text-5xl font-extrabold mt-1">0</div>
+            </div>
+
+            <div id="multi-tasse-auswahl" class="p-4 border border-gray-200 rounded-lg">
+                <p class="text-md font-semibold text-gray-700 mb-3">Tassenbezug (1 Punkt/Tasse):</p>
+                <div class="flex justify-center space-x-4">
+                    <button class="tasse-wahl w-12 h-12 bg-gray-100 hover:bg-indigo-200 text-gray-800 rounded-full font-bold" data-anzahl="1">1</button>
+                    <button class="tasse-wahl w-12 h-12 bg-gray-100 hover:bg-indigo-200 text-gray-800 rounded-full font-bold" data-anzahl="2">2</button>
+                    <button class="tasse-wahl w-12 h-12 bg-gray-100 hover:bg-indigo-200 text-gray-800 rounded-full font-bold" data-anzahl="3">3</button>
+                </div>
+            </div>
+            
+            <div id="nachricht" class="message p-2 mt-4 text-sm font-medium rounded-lg text-center"></div>
+            
+            <button id="abmelden-btn" class="w-full p-3 text-white bg-red-500 hover:bg-red-600 rounded-lg font-semibold transition duration-200">
+                Abmelden
+            </button>
+        </div>
+
+        <!-- 4. Admin-Dashboard -->
+        <div id="admin-dashboard" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-800">Admin-Menü</h2>
+                <span class="admin-badge px-3 py-1 text-sm font-semibold rounded-full">Administrator</span>
+            </div>
+            
+            <div id="admin-nachricht" class="message p-2 mt-4 text-sm font-medium rounded-lg text-center"></div>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h3 class="font-semibold text-yellow-800">Admin-Funktionen</h3>
+                <p class="text-sm text-yellow-600 mt-1">Hier können Sie Benutzerkonten verwalten und Punkte gutschreiben/abbuchen.</p>
+            </div>
+            
+            <div class="overflow-x-auto shadow-md rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Konto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Punkte</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Punkte verwalten</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PIN ändern</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-user-list" class="bg-white divide-y divide-gray-200">
+                        <!-- Benutzerkonten werden hier eingefügt -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="flex space-x-4">
+                <button id="admin-create-user-btn" class="flex-1 p-3 text-white bg-green-600 hover:bg-green-700 rounded-lg font-semibold">
+                    Neuen Benutzer anlegen
+                </button>
+                <button id="admin-logout-btn" class="flex-1 p-3 text-white bg-red-500 hover:bg-red-600 rounded-lg font-semibold">
+                    Abmelden
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Ihre Firebase-Konfiguration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAB8PtrVrVIpZ22xiME0Dkr7T0UJUz76uU",
+            authDomain: "prepaidkaffesystem12.firebaseapp.com",
+            projectId: "prepaidkaffesystem12",
+            storageBucket: "prepaidkaffesystem12.firebasestorage.app",
+            messagingSenderId: "430968569203",
+            appId: "1:430968569203:web:5df5eaef1c56a3eaf89906",
+            measurementId: "G-2QP3T94HVD"
+        };
+
+        // Import der Firebase-Funktionen
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            updateDoc, 
+            onSnapshot, 
+            collection
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase-Initialisierung
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- KONSTANTEN ---
+        const ADMIN_ID = "250925";
+        const ADMIN_DEFAULT_PIN = "0000";
+        const COST_PER_CUP = 1;
+        const PIN_MIN_LENGTH = 4; // Mindestlänge statt maximaler Länge
+        const ACCOUNT_NUMBER_LENGTH = 6;
+        const APP_ID = "prepaid-kaffeesystem-v1";
+        const START_PUNKTE = 1;
+
+        // Rollen-Konstanten
+        const ROLE_USER = "user";
+        const ROLE_ADMIN = "admin";
+
+        // --- App State ---
+        let currentKontonummer = null;
+        let userData = null;
+        let isAuthReady = false;
+        let userSnapshotUnsubscribe = null;
+        let adminSnapshotUnsubscribe = null;
+        
+        // --- Firestore Pfade ---
+        const getPrivateUserDocRef = (kontonummer) => 
+            doc(db, 'users', kontonummer);
+        
+        const usersCollection = collection(db, 'users');
+
+        // --- DOM-Elemente ---
+        const loadingScreen = document.getElementById('loading');
+        const loginForm = document.getElementById('login-form');
+        const registrationForm = document.getElementById('registration-form');
+        const dashboard = document.getElementById('dashboard');
+        const adminDashboard = document.getElementById('admin-dashboard');
+
+        const userIdDisplay = document.getElementById('user-id');
+        const kontonummerInput = document.getElementById('kontonummer');
+        const pinInput = document.getElementById('pin');
+        const loginNachricht = document.getElementById('login-nachricht');
+        const anmeldenBtn = document.getElementById('anmelden-btn');
+
+        const regKontonummerInput = document.getElementById('reg-kontonummer');
+        const regNameInput = document.getElementById('reg-name');
+        const regEmailInput = document.getElementById('reg-email');
+        const regPinInput = document.getElementById('reg-pin');
+        const regPinConfirmInput = document.getElementById('reg-pin-confirm');
+        const regNachricht = document.getElementById('reg-nachricht');
+        const registerLoginBtn = document.getElementById('registerLoginBtn');
+
+        const userDisplay = document.getElementById('user-display');
+        const userRoleBadge = document.getElementById('user-role-badge');
+        const punktestandElement = document.getElementById('punktestand');
+        const multiTasseAuswahl = document.getElementById('multi-tasse-auswahl');
+        const nachrichtElement = document.getElementById('nachricht');
+
+        const adminUserList = document.getElementById('admin-user-list');
+        const adminNachricht = document.getElementById('admin-nachricht');
+        const adminCreateUserBtn = document.getElementById('admin-create-user-btn');
+
+        // --- HILFSFUNKTIONEN ---
+
+        function showMessage(element, message, isError = false, autoHide = true) {
+            element.textContent = message;
+            element.classList.remove('bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+            element.classList.add(isError ? 'bg-red-100' : 'bg-green-100', isError ? 'text-red-700' : 'text-green-700');
+            
+            if (isError) {
+                element.classList.add('shake');
+                setTimeout(() => element.classList.remove('shake'), 500);
+            }
+            
+            if (autoHide && !isError) {
+                setTimeout(() => {
+                    element.textContent = '';
+                    element.className = 'message p-2 mt-4 text-sm font-medium rounded-lg text-center fade-in';
+                }, 5000);
+            }
+        }
+
+        function showLoginMessage(message, isError = false) {
+            showMessage(loginNachricht, message, isError);
+        }
+
+        function showRegistrationMessage(message, isError = false) {
+            showMessage(regNachricht, message, isError, false);
+        }
+
+        function showDashboardMessage(message, isError = false) {
+            showMessage(nachrichtElement, message, isError);
+        }
+
+        function showAdminMessage(message, isError = false) {
+            showMessage(adminNachricht, message, isError, false);
+        }
+
+        function resetLoginButton() {
+            anmeldenBtn.disabled = false;
+            anmeldenBtn.textContent = "Anmelden";
+            anmeldenBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function setLoginButtonLoading() {
+            anmeldenBtn.disabled = true;
+            anmeldenBtn.textContent = "Anmelden...";
+            anmeldenBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        function hideAllViews() {
+            loginForm.classList.add('hidden');
+            registrationForm.classList.add('hidden');
+            dashboard.classList.add('hidden');
+            adminDashboard.classList.add('hidden');
+            
+            if (userSnapshotUnsubscribe) {
+                userSnapshotUnsubscribe();
+                userSnapshotUnsubscribe = null;
+            }
+        }
+
+        function isValidPin(pin) {
+            return pin && pin.length >= PIN_MIN_LENGTH; // Nur Mindestlänge prüfen
+        }
+
+        function isValidKontonummer(kontonummer) {
+            return kontonummer && kontonummer.length === ACCOUNT_NUMBER_LENGTH && /^\d+$/.test(kontonummer);
+        }
+
+        function isAdminUser(userData) {
+            return userData && userData.role === ROLE_ADMIN;
+        }
+
+        // --- KERNLOGIK ---
+
+        async function initializeAuth() {
+            try {
+                await signInAnonymously(auth);
+                isAuthReady = true;
+                anmeldenBtn.disabled = false;
+            } catch (error) {
+                console.error("Firebase Auth Initialization Error:", error);
+                showLoginMessage(`Fehler bei der Anmeldung: ${error.message}`, true);
+                loadingScreen.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+            }
+        }
+
+        async function ensureAdminAccountExists() {
+            const adminRef = getPrivateUserDocRef(ADMIN_ID);
+
+            try {
+                const adminDoc = await getDoc(adminRef);
+
+                if (!adminDoc.exists()) {
+                    console.log("Admin-Konto nicht gefunden. Initialisiere Admin-Konto...");
+                    
+                    const adminData = {
+                        kontonummer: ADMIN_ID,
+                        pin: ADMIN_DEFAULT_PIN,
+                        name: "Administrator",
+                        email: "admin@system.local",
+                        punkte: 0,
+                        role: ROLE_ADMIN,
+                        createdAt: new Date()
+                    };
+
+                    await setDoc(adminRef, adminData);
+                    console.log(`Admin-Konto (${ADMIN_ID}) mit Standard-PIN (${ADMIN_DEFAULT_PIN}) erstellt.`);
+                }
+            } catch (error) {
+                console.error("Fehler bei der Admin-Konto-Initialisierung:", error);
+                throw error;
+            }
+        }
+
+        async function handleLogin() {
+            if (!isAuthReady) {
+                showLoginMessage("System wird initialisiert. Bitte warten Sie.", true);
+                return;
+            }
+            
+            setLoginButtonLoading();
+            
+            const kontonummer = kontonummerInput.value.trim();
+            const pin = pinInput.value.trim();
+            
+            if (!isValidKontonummer(kontonummer)) {
+                showLoginMessage("Bitte eine gültige 6-stellige Kontonummer eingeben.", true);
+                resetLoginButton();
+                kontonummerInput.focus();
+                return;
+            }
+            
+            if (!isValidPin(pin)) {
+                showLoginMessage(`Bitte eine gültige PIN/Passwort eingeben (mindestens ${PIN_MIN_LENGTH} Zeichen).`, true);
+                resetLoginButton();
+                pinInput.focus();
+                return;
+            }
+            
+            try {
+                const userDocRef = getPrivateUserDocRef(kontonummer);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (!userDoc.exists()) {
+                    showLoginMessage("Ungültige Kontonummer oder PIN/Passwort.", true);
+                    resetLoginButton();
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                if (userData.pin !== pin) {
+                    showLoginMessage("Ungültige Kontonummer oder PIN/Passwort.", true);
+                    resetLoginButton();
+                    return;
+                }
+                
+                currentKontonummer = kontonummer;
+
+                // Prüfe Rolle und zeige entsprechendes Dashboard
+                if (isAdminUser(userData)) {
+                    showAdminDashboard();
+                } else {
+                    showUserDashboard();
+                }
+                
+                showLoginMessage("Erfolgreich angemeldet!", false);
+                
+            } catch (error) {
+                console.error("Login-Fehler:", error);
+                
+                if (error.code === 'permission-denied') {
+                    showLoginMessage("Zugriff verweigert. Bitte Firebase Rules überprüfen.", true);
+                } else {
+                    showLoginMessage(`Fehler bei der Anmeldung: ${error.message}`, true);
+                }
+            } finally {
+                resetLoginButton();
+            }
+        }
+
+        function showUserDashboard() {
+            hideAllViews();
+            dashboard.classList.remove('hidden');
+            dashboard.classList.add('fade-in');
+            
+            const userDocRef = getPrivateUserDocRef(currentKontonummer);
+            userSnapshotUnsubscribe = onSnapshot(userDocRef, (doc) => {
+                if (doc.exists()) {
+                    userData = doc.data();
+                    updateUserDisplay();
+                } else {
+                    console.error("Benutzerdokument nicht gefunden.");
+                    handleLogout();
+                }
+            }, (error) => {
+                console.error("User Dashboard Snapshot Error: ", error);
+                showDashboardMessage("Fehler beim Laden der Daten.", true);
+            });
+        }
+
+        function showAdminDashboard() {
+            hideAllViews();
+            adminDashboard.classList.remove('hidden');
+            adminDashboard.classList.add('fade-in');
+            
+            // Listener für alle Benutzer
+            adminSnapshotUnsubscribe = onSnapshot(usersCollection, (querySnapshot) => {
+                const allUsers = {};
+                querySnapshot.forEach((doc) => {
+                    allUsers[doc.id] = doc.data();
+                });
+                updateAdminDashboard(allUsers);
+            }, (error) => {
+                console.error("Admin Snapshot Error: ", error);
+                showAdminMessage("Fehler beim Laden der Benutzerdaten.", true);
+            });
+        }
+
+        function updateUserDisplay() {
+            userDisplay.textContent = userData.name;
+            punktestandElement.textContent = userData.punkte;
+            
+            // Rolle anzeigen
+            if (isAdminUser(userData)) {
+                userRoleBadge.textContent = "Administrator";
+                userRoleBadge.className = "admin-badge px-2 py-1 text-xs font-semibold rounded-full";
+                userRoleBadge.classList.remove('hidden');
+            } else {
+                userRoleBadge.textContent = "Benutzer";
+                userRoleBadge.className = "bg-blue-100 text-blue-800 px-2 py-1 text-xs font-semibold rounded-full";
+                userRoleBadge.classList.remove('hidden');
+            }
+            
+            nachrichtElement.textContent = '';
+            nachrichtElement.className = 'message p-2 mt-4 text-sm font-medium rounded-lg text-center';
+        }
+
+        function updateAdminDashboard(usersData) {
+            adminUserList.innerHTML = '';
+            const userList = Object.keys(usersData)
+                .map(key => ({ kontonummer: key, ...usersData[key] }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            if (userList.length === 0) {
+                adminUserList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            Keine Benutzerkonten vorhanden.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            userList.forEach(user => {
+                const isAdmin = isAdminUser(user);
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50 fade-in";
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${user.kontonummer}
+                        ${isAdmin ? '<span class="ml-1 text-red-500">★</span>' : ''}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-bold text-center">${user.punkte || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        ${!isAdmin ? `
+                            <div class="points-control justify-center">
+                                <button class="points-btn subtract" data-konto="${user.kontonummer}" data-amount="1">-1</button>
+                                <button class="points-btn add" data-konto="${user.kontonummer}" data-amount="1">+1</button>
+                                <button class="points-btn add" data-konto="${user.kontonummer}" data-amount="5">+5</button>
+                                <button class="points-btn add" data-konto="${user.kontonummer}" data-amount="10">+10</button>
+                            </div>
+                        ` : '<span class="text-gray-400 text-xs">Admin-Konto</span>'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        ${!isAdmin ? `
+                            <div>
+                                <input type="password" class="pin-input w-32 p-1 border rounded text-sm" data-konto="${user.kontonummer}" placeholder="Neues Passwort" minlength="4">
+                                <button class="change-pin-btn bg-blue-500 hover:bg-blue-600 text-white p-1 rounded text-xs mt-1 w-full" data-konto="${user.kontonummer}">Passwort ändern</button>
+                            </div>
+                        ` : '<span class="text-gray-400 text-xs">-</span>'}
+                    </td>
+                `;
+                adminUserList.appendChild(row);
+            });
+        }
+
+        async function updatePoints(kontonummer, amount) {
+            const userRef = getPrivateUserDocRef(kontonummer);
+            
+            try {
+                const userDoc = await getDoc(userRef);
+                
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    // Admins können keine Punkte haben
+                    if (isAdminUser(userData)) {
+                        showAdminMessage("Admin-Konten können keine Punkte haben.", true);
+                        return;
+                    }
+                    
+                    const currentPoints = userData.punkte || 0;
+                    const newPoints = currentPoints + amount;
+                    
+                    // Verhindere negative Punkte
+                    if (newPoints >= 0) {
+                        await updateDoc(userRef, { punkte: newPoints });
+                        const action = amount >= 0 ? "hinzugefügt" : "abgezogen";
+                        showAdminMessage(`${Math.abs(amount)} Punkte für Konto ${kontonummer} ${action}. Neuer Stand: ${newPoints}`, false);
+                    } else {
+                        showAdminMessage("Fehler: Punkte können nicht negativ werden.", true);
+                    }
+                } else {
+                    showAdminMessage(`Benutzer mit Kontonummer ${kontonummer} nicht gefunden.`, true);
+                }
+            } catch (error) {
+                console.error("Fehler beim Aktualisieren der Punkte:", error);
+                showAdminMessage(`Fehler beim Aktualisieren der Punkte: ${error.message}`, true);
+            }
+        }
+
+        async function changePin(kontonummer, newPin) {
+            const userRef = getPrivateUserDocRef(kontonummer);
+            
+            try {
+                if (isValidPin(newPin)) {
+                    await updateDoc(userRef, { pin: newPin });
+                    showAdminMessage(`Passwort für Konto ${kontonummer} erfolgreich geändert.`, false);
+                } else {
+                    showAdminMessage(`Fehler: Passwort muss mindestens ${PIN_MIN_LENGTH} Zeichen lang sein.`, true);
+                }
+            } catch (error) {
+                console.error("Fehler beim Ändern des Passworts:", error);
+                showAdminMessage(`Fehler beim Ändern des Passworts: ${error.message}`, true);
+            }
+        }
+
+        function handleShowRegistration() {
+            hideAllViews();
+            registrationForm.classList.remove('hidden');
+            registrationForm.classList.add('fade-in');
+            showRegistrationMessage('');
+            
+            const newKontonummer = Math.floor(100000 + Math.random() * 900000).toString();
+            regKontonummerInput.value = newKontonummer;
+            regPinInput.value = '';
+            regPinConfirmInput.value = '';
+            regNameInput.focus();
+        }
+
+        async function handleRegistrationSubmit() {
+            const kontonummer = regKontonummerInput.value.trim();
+            const name = regNameInput.value.trim();
+            const email = regEmailInput.value.trim();
+            const pin = regPinInput.value.trim();
+            const pinConfirm = regPinConfirmInput.value.trim();
+
+            if (!isValidKontonummer(kontonummer)) {
+                showRegistrationMessage("Ungültige Kontonummer.", true);
+                return;
+            }
+            
+            if (name === '' || email === '') {
+                showRegistrationMessage("Name und E-Mail müssen ausgefüllt werden.", true);
+                return;
+            }
+            
+            if (!isValidPin(pin)) {
+                showRegistrationMessage(`Das Passwort muss mindestens ${PIN_MIN_LENGTH} Zeichen lang sein.`, true);
+                return;
+            }
+            
+            if (pin !== pinConfirm) {
+                showRegistrationMessage("Die Passwörter stimmen nicht überein.", true);
+                return;
+            }
+            
+            const userRef = getPrivateUserDocRef(kontonummer);
+
+            try {
+                const userDoc = await getDoc(userRef);
+                if (userDoc.exists()) {
+                    showRegistrationMessage(`Die Kontonummer ${kontonummer} existiert bereits.`, true);
+                    return;
+                }
+
+                const newUserData = { 
+                    kontonummer: kontonummer, 
+                    pin: pin, 
+                    name: name, 
+                    email: email, 
+                    punkte: START_PUNKTE,
+                    role: ROLE_USER,
+                    createdAt: new Date()
+                };
+                
+                await setDoc(userRef, newUserData);
+
+                showRegistrationMessage(`
+                    Registrierung erfolgreich! Deine Kontonummer ist ${kontonummer}.
+                    Merke dir deine Kontonummer und Passwort!
+                `, false);
+                registerLoginBtn.classList.remove('hidden');
+            } catch (error) {
+                console.error("Registrierungsfehler:", error);
+                showRegistrationMessage(`Fehler bei der Registrierung: ${error.message}`, true);
+            }
+        }
+
+        function handleReturnToLogin() {
+            hideAllViews();
+            loginForm.classList.remove('hidden');
+            loginForm.classList.add('fade-in');
+            showLoginMessage('');
+            kontonummerInput.value = '';
+            pinInput.value = '';
+            registerLoginBtn.classList.add('hidden');
+            kontonummerInput.focus();
+        }
+        
+        async function handleLogout() {
+            try {
+                currentKontonummer = null;
+                userData = null;
+                isAuthReady = false;
+                anmeldenBtn.disabled = true;
+                
+                await signOut(auth);
+                await initializeAuth();
+                
+                hideAllViews();
+                loginForm.classList.remove('hidden');
+                loginForm.classList.add('fade-in');
+
+            } catch (error) {
+                console.error("Abmeldefehler:", error);
+                showLoginMessage(`Fehler beim Abmelden: ${error.message}`, true);
+            }
+        }
+
+        async function kaufeTassen(anzahl) {
+            const kosten = anzahl * COST_PER_CUP;
+            
+            if (!userData || !currentKontonummer) {
+                showDashboardMessage("Fehler: Bitte neu anmelden.", true);
+                return;
+            }
+
+            const userRef = getPrivateUserDocRef(currentKontonummer);
+            
+            try {
+                const docSnap = await getDoc(userRef);
+                const currentPoints = docSnap.data().punkte || 0;
+
+                if (currentPoints >= kosten) {
+                    const newPoints = currentPoints - kosten;
+                    
+                    await updateDoc(userRef, { punkte: newPoints });
+                    showDashboardMessage(`Erfolg! ${anzahl} Tasse(n) abgezogen.`, false);
+                } else {
+                    showDashboardMessage(`Fehler! Du hast nur ${currentPoints} Punkte, benötigst aber ${kosten}.`, true);
+                }
+            } catch (error) {
+                console.error("Kauf-Fehler:", error);
+                showDashboardMessage(`Fehler beim Kauf: ${error.message}`, true);
+            }
+        }
+
+        // --- AUTHENTIFIZIERUNGSLISTENER ---
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userIdDisplay.textContent = user.uid;
+                loadingScreen.classList.add('hidden');
+                
+                isAuthReady = true;
+                anmeldenBtn.disabled = false;
+                
+                if (currentKontonummer) {
+                    // Benutzer ist bereits angemeldet
+                    const userDocRef = getPrivateUserDocRef(currentKontonummer);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        if (isAdminUser(userData)) {
+                            showAdminDashboard();
+                        } else {
+                            showUserDashboard();
+                        }
+                    }
+                } else {
+                    // Zeige Login-Formular für anonyme Benutzer
+                    loginForm.classList.remove('hidden');
+                    loginForm.classList.add('fade-in');
+                }
+
+            } else {
+                await initializeAuth();
+            }
+        });
+
+        // --- EVENT LISTENER ---
+
+        document.getElementById('anmelden-btn').addEventListener('click', handleLogin);
+        
+        pinInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+        
+        document.getElementById('registrieren-btn').addEventListener('click', handleShowRegistration);
+        document.getElementById('register-submit-btn').addEventListener('click', handleRegistrationSubmit);
+        document.getElementById('register-back-btn').addEventListener('click', handleReturnToLogin);
+        registerLoginBtn.addEventListener('click', handleReturnToLogin);
+
+        document.getElementById('abmelden-btn').addEventListener('click', handleLogout);
+        document.getElementById('admin-logout-btn').addEventListener('click', handleLogout);
+        adminCreateUserBtn.addEventListener('click', handleShowRegistration);
+
+        multiTasseAuswahl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tasse-wahl')) {
+                const anzahl = parseInt(e.target.dataset.anzahl, 10);
+                kaufeTassen(anzahl);
+            }
+        });
+
+        adminDashboard.addEventListener('click', (e) => {
+            const target = e.target;
+            const kontonummer = target.dataset.konto;
+
+            if (!kontonummer) return;
+
+            if (target.classList.contains('points-btn')) {
+                const amount = parseInt(target.dataset.amount, 10);
+                const isSubtract = target.classList.contains('subtract');
+                
+                updatePoints(kontonummer, isSubtract ? -amount : amount);
+                
+            } else if (target.classList.contains('change-pin-btn')) {
+                const row = target.closest('tr');
+                const input = row.querySelector(`.pin-input[data-konto="${kontonummer}"]`);
+                const newPin = input.value;
+                
+                if (newPin.length >= PIN_MIN_LENGTH) {
+                    changePin(kontonummer, newPin);
+                    input.value = '';
+                } else {
+                    showAdminMessage(`Passwort muss mindestens ${PIN_MIN_LENGTH} Zeichen lang sein.`, true);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
